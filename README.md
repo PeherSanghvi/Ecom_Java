@@ -2,31 +2,7 @@
 
 A full-stack e-commerce platform with a **Java 21 / Spring Boot 3.2** backend, **Vue 3** frontend, **MongoDB** (replica set) database, and **OpenSearch** full-text search. The entire stack runs in Docker Compose with no local runtimes required.
 
----
 
-## Architecture
-
-```mermaid
-graph TD
-    Browser["Browser\n(localhost:3000)"]
-
-    subgraph Docker["Docker Network: ecom-java-network"]
-        FE["ecom-java-frontend\nNginx + Vue 3 SPA\nport 80 → host 3000"]
-        BE["ecom-java-backend\nSpring Boot 3.2 / Java 21\nport 8083"]
-        MG["ecom-java-mongo\nMongoDB 7.0 (replica set rs0)\nport 27017"]
-        OS["ecom-java-opensearch\nOpenSearch 2.13\nport 9200"]
-    end
-
-    Browser -->|"HTTP :3000"| FE
-    FE -->|"/api/* proxy"| BE
-    BE -->|"Spring Data MongoDB"| MG
-    BE -->|"opensearch-java client"| OS
-    BE -.->|"optional / graceful degradation"| Redis["Redis\n(not in compose)"]
-```
-
-**Request flow:** The browser talks only to Nginx on port 3000. Nginx serves the Vue SPA for all routes and reverse-proxies every `/api/*` request to the Spring Boot container. The backend reads/writes MongoDB and indexes orders into OpenSearch. An internal `OrderSyncWorker` scheduled task syncs newly created orders to OpenSearch every 60 seconds.
-
----
 
 ## Tech Stack
 
