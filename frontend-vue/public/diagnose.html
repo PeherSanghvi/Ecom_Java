@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Integration Diagnostics</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #444; background: #252526; }
+        .section h2 { color: #4ec9b0; margin-top: 0; }
+        .error { color: #f48771; }
+        .success { color: #89d185; }
+        .warning { color: #dcdcaa; }
+        pre { background: #1e1e1e; padding: 10px; border: 1px solid #444; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #0e639c; color: white; border: none; cursor: pointer; }
+        button:hover { background: #1177bb; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Integration Diagnostics</h1>
+    <p>Open this page at <code>http://localhost:3000</code> in the browser, then run diagnostics.</p>
+    
+    <button onclick="runFullDiagnostics()">▶ RUN FULL DIAGNOSTICS</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8083/api';
+        const results = document.getElementById('results');
+
+        function log(section, message, type = 'info') {
+            const color = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            console.log(`[${section}] ${message}`);
+            results.innerHTML += `<div class="${color}">[${section}] ${message}</div>`;
+        }
+
+        function addSection(title) {
+            results.innerHTML += `<div class="section"><h2>${title}</h2><div id="${title.replace(/\s+/g, '-')}"></div></div>`;
+            return document.getElementById(title.replace(/\s+/g, '-'));
+        }
+
+        async function runFullDiagnostics() {
+            results.innerHTML = '<h2>Running Diagnostics...</h2>';
+            
+            try {
+                await diagnoseLocalStorage();
+                await diagnoseAuth();
+                await diagnoseWishlist();
+                await diagnoseCart();
+                await diagnoseCheckout();
+                await diagnoseOrders();
+                
+                log('COMPLETE', '✅ All diagnostics complete', 'success');
+            } catch (error) {
+                log('ERROR', `Diagnostics failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function diagnoseLocalStorage() {
+            const section = addSection('1. LocalStorage Contents');
+            
+            const keys = ['user', 'token', 'cart', 'wishlist'];
+            let html = '<pre>';
+            
+            for (const key of keys) {
+                const value = localStorage.getItem(key);
+                html += `<strong>${key}:</strong>\n`;
+                if (value) {
+                    try {
+                        const parsed = JSON.parse(value);
+                        html += JSON.stringify(parsed, null, 2) + '\n\n';
+                    } catch {
+                        html += value + '\n\n';
+                    }
+                } else {
+                    html += '<span class="warning">NOT FOUND</span>\n\n';
+                }
+            }
+            
+            html += '</pre>';
+            section.innerHTML = html;
+        }
+
+        async function diagnoseAuth() {
+            const section = addSection('2. Authentication State');
+            
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            const token = localStorage.getItem('token');
+            
+            let html = '<pre>';
+            html += `<strong>User Object:</strong>\n${JSON.stringify(user, null, 2)}\n\n`;
+            html += `<strong>User ID (_id):</strong> ${user?._id || '<span class="error">MISSING</span>'}\n`;
+            html += `<strong>User ID (id):</strong> ${user?.id || '<span class="warning">MISSING</span>'}\n`;
+            html += `<strong>Token:</strong> ${token ? token.substring(0, 50) + '...' : '<span class="error">MISSING</span>'}\n`;
+            html += '</pre>';
+            
+            section.innerHTML = html;
+        }
+
+        async function diagnoseWishlist() {
+            const section = addSection('3. Wishlist Diagnostics');
+            
+            const wishlistIds = JSON.parse(localStorage.getItem('wishlist') || '[]');
+            
+            let html = '<pre>';
+            html += `<strong>Wishlist IDs in localStorage:</strong>\n${JSON.stringify(wishlistIds, null, 2)}\n\n`;
+            html += `<strong>Count:</strong> ${wishlistIds.length}\n\n`;
+            
+            if (wishlistIds.length > 0) {
+                html += '<strong>Testing Product API for each ID:</strong>\n\n';
+                
+                for (const id of wishlistIds) {
+                    try {
+                        const response = await fetch(`${API_BASE}/products/${id}`);
+                        const data = await response.json();
+                        
+                        if (response.ok && data.success && data.data) {
+                            html += `✅ ID ${id}: <span class="success">FOUND</span>\n`;
+                            html += `   Title: ${data.data.title}\n`;
+                            html += `   Stock: ${data.data.stock}\n\n`;
+                        } else {
+                            html += `❌ ID ${id}: <span class="error">NOT FOUND</span>\n`;
+                            html += `   Response: ${JSON.stringify(data)}\n\n`;
+                        }
+                    } catch (error) {
+                        html += `❌ ID ${id}: <span class="error">ERROR</span> ${error.message}\n\n`;
+                    }
+                }
+            }
+            
+            html += '</pre>';
+            section.innerHTML = html;
+        }
+
+        async function diagnoseCart() {
+            const section = addSection('4. Cart Diagnostics');
+            
+            const cart = JSON.parse(localStorage.getItem('cart') || '{"items":[]}');
+            
+            let html = '<pre>';
+            html += `<strong>Cart Items:</strong>\n${JSON.stringify(cart.items, null, 2)}\n\n`;
+            html += `<strong>Item Count:</strong> ${cart.items.length}\n\n`;
+            
+            if (cart.items.length > 0) {
+                html += '<strong>Product IDs in Cart:</strong>\n';
+                cart.items.forEach((item, idx) => {
+                    html += `  [${idx}] ${item.productId} - ${item.title}\n`;
+                });
+                html += '\n';
+            }
+            
+            html += '</pre>';
+            section.innerHTML = html;
+        }
+
+        async function diagnoseCheckout() {
+            const section = addSection('5. Checkout Simulation');
+            
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            const cart = JSON.parse(localStorage.getItem('cart') || '{"items":[]}');
+            const token = localStorage.getItem('token');
+            
+            let html = '<pre>';
+            
+            if (cart.items.length === 0) {
+                html += '<span class="warning">⚠ Cart is empty - cannot test checkout</span>\n';
+                section.innerHTML = html + '</pre>';
+                return;
+            }
+            
+            const payload = {
+                customerId: user?._id || '',
+                items: cart.items.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity
+                })),
+                idempotencyKey: `diag-${Date.now()}`
+            };
+            
+            html += `<strong>Checkout Payload:</strong>\n${JSON.stringify(payload, null, 2)}\n\n`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                html += `<strong>Response Status:</strong> ${response.status}\n\n`;
+                html += `<strong>Response Body:</strong>\n${JSON.stringify(data, null, 2)}\n\n`;
+                
+                if (response.ok && data.success) {
+                    html += `<span class="success">✅ CHECKOUT SUCCESS</span>\n`;
+                } else {
+                    html += `<span class="error">❌ CHECKOUT FAILED</span>\n`;
+                    html += `<strong>Error:</strong> ${data.error || data.message}\n`;
+                }
+            } catch (error) {
+                html += `<span class="error">❌ REQUEST FAILED: ${error.message}</span>\n`;
+            }
+            
+            html += '</pre>';
+            section.innerHTML = html;
+        }
+
+        async function diagnoseOrders() {
+            const section = addSection('6. Orders Retrieval');
+            
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            const token = localStorage.getItem('token');
+            
+            let html = '<pre>';
+            
+            if (!user?._id) {
+                html += '<span class="error">❌ User not authenticated - cannot fetch orders</span>\n';
+                section.innerHTML = html + '</pre>';
+                return;
+            }
+            
+            html += `<strong>Fetching orders for user:</strong> ${user._id}\n\n`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/customer/${user._id}?page=1&limit=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                html += `<strong>Response Status:</strong> ${response.status}\n\n`;
+                html += `<strong>Response Body:</strong>\n${JSON.stringify(data, null, 2)}\n\n`;
+                
+                if (response.ok && data.success) {
+                    html += `<span class="success">✅ Orders API Success</span>\n`;
+                    html += `<strong>Order Count:</strong> ${data.orders?.length || 0}\n`;
+                } else {
+                    html += `<span class="error">❌ Orders API Failed</span>\n`;
+                }
+            } catch (error) {
+                html += `<span class="error">❌ REQUEST FAILED: ${error.message}</span>\n`;
+            }
+            
+            html += '</pre>';
+            section.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

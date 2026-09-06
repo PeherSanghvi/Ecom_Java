@@ -1,0 +1,68 @@
+# ── Node / npm ────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+coverage/
+
+# ── .NET build artifacts ──────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.DotSettings
+*.ncrunchproject
+
+# ── Environment / secrets ──────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Python (legacy – no longer in project) ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.so
+venv/
+ENV/
+.pytest_cache/
+*.egg-info/
+*.egg
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Test / Playwright output ──────────────────────────────────────────────────
+playwright-report/
+test-results/
+
+# ── Temp / debug / verification artefacts ────────────────────────────────────
+verify.ps1
+verify.py
+test_search.ps1
+test_parity.ps1
+auth_parity_test.ps1
+DEBUG_REPORT.md
+DEBUG_SUMMARY.txt
+FINAL_FIX_SUMMARY.txt
+FRONTEND_DEBUG_FIX.md
+
+# ── Old project directories (deleted, kept here as safety net) ────────────────
+fastapi-vue-ecommerce/
+backend-fastapi/

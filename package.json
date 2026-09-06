@@ -1,0 +1,24 @@
+{
+  "name": "ecom-net",
+  "version": "1.0.0",
+  "description": "Full-stack e-commerce platform built with ASP.NET Core (.NET 10), Vue 3, MongoDB, and OpenSearch. Supports customer shopping, order management, and an admin dashboard with full-text search.",
+  "main": "mongo-init.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
+  },
+  "keywords": ["ecommerce", "aspnet", "dotnet", "vue3", "mongodb", "opensearch"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  },
+  "dependencies": {
+    "mongodb": "^7.5.0"
+  }
+}

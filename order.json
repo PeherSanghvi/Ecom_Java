@@ -1,0 +1,16 @@
+﻿{
+    "idempotencyKey":  "0c4c308c-b571-48e4-a32e-269d50460705",
+    "shippingAddress":  {
+                            "country":  "Test",
+                            "street":  "123",
+                            "state":  "TS",
+                            "zipCode":  "123",
+                            "city":  "Test"
+                        },
+    "items":  [
+                  {
+                      "productId":  null,
+                      "quantity":  1
+                  }
+              ]
+}

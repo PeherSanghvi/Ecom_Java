@@ -1,0 +1,19 @@
+package com.ecomapi.dto;
+
+import lombok.Data;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+@Data
+public class RegisterRequest {
+    @NotBlank
+    private String name;
+    @NotBlank
+    @Email
+    private String email;
+    @NotBlank
+    private String password;
+    @NotBlank
+    private String phone;
+    private AddressDto address;
+}

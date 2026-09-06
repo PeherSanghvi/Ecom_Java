@@ -1,0 +1,19 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: ecom-api
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://127.0.0.1:27017/ecommerce}
+      database: ${MONGODB_DATABASE:ecommerce}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+jwt:
+  secret: ${JWT_SECRET:ecom-java-jwt-secret-change-in-production-must-be-long}
+  expires-in: 24h
+opensearch:
+  host: ${OPENSEARCH_HOST:localhost}
+  port: ${OPENSEARCH_PORT:9200}
+  scheme: ${OPENSEARCH_SCHEME:http}

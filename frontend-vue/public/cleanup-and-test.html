@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cleanup & Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #444; background: #252526; }
+        h2 { color: #4ec9b0; }
+        button { padding: 10px 20px; margin: 5px; background: #0e639c; color: white; border: none; cursor: pointer; font-size: 14px; }
+        button:hover { background: #1177bb; }
+        .danger { background: #dc3545; }
+        .danger:hover { background: #c82333; }
+        pre { background: #1e1e1e; padding: 10px; border: 1px solid #444; overflow-x: auto; }
+        .success { color: #89d185; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+    </style>
+</head>
+<body>
+    <h1>🧹 Cleanup & Test System</h1>
+    
+    <div class="section">
+        <h2>Current LocalStorage</h2>
+        <pre id="current"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Actions</h2>
+        <button class="danger" onclick="clearAll()">Clear ALL localStorage</button>
+        <button onclick="clearInvalid()">Clear Invalid Data Only</button>
+        <button onclick="refresh()">Refresh Display</button>
+    </div>
+
+    <div class="section">
+        <h2>Test Valid Product IDs</h2>
+        <button onclick="testProductAPI()">Test Product API</button>
+        <pre id="test-result"></pre>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        function displayCurrent() {
+            const cart = localStorage.getItem('cart');
+            const wishlist = localStorage.getItem('wishlist');
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            
+            let output = '';
+            output += '=== USER ===\n';
+            if (user) {
+                const u = JSON.parse(user);
+                output += `Email: ${u.email}\n`;
+                output += `ID: ${u._id || 'MISSING'}\n`;
+                output += `ID Length: ${(u._id || '').length}\n\n`;
+            } else {
+                output += 'Not logged in\n\n';
+            }
+
+            output += '=== TOKEN ===\n';
+            output += token ? `${token.substring(0, 50)}...\n\n` : 'None\n\n';
+
+            output += '=== CART ===\n';
+            if (cart) {
+                const c = JSON.parse(cart);
+                output += `Items: ${c.items?.length || 0}\n`;
+                if (c.items && c.items.length > 0) {
+                    c.items.forEach((item, i) => {
+                        const idLength = item.productId ? item.productId.length : 0;
+                        const valid = idLength === 24 ? '✓' : '✗';
+                        output += `  [${i}] ${item.productId} (${idLength} chars) ${valid}\n`;
+                    });
+                }
+            } else {
+                output += 'Empty\n';
+            }
+
+            output += '\n=== WISHLIST ===\n';
+            if (wishlist) {
+                const w = JSON.parse(wishlist);
+                output += `Count: ${w.length || 0}\n`;
+                if (w.length > 0) {
+                    w.forEach((id, i) => {
+                        const idLength = id ? id.length : 0;
+                        const valid = idLength === 24 ? '✓' : '✗';
+                        output += `  [${i}] ${id} (${idLength} chars) ${valid}\n`;
+                    });
+                }
+            } else {
+                output += 'Empty\n';
+            }
+
+            document.getElementById('current').textContent = output;
+        }
+
+        function clearAll() {
+            if (!confirm('Clear ALL localStorage including user session?')) return;
+            localStorage.clear();
+            displayCurrent();
+            document.getElementById('test-result').innerHTML = '<span class="success">✓ All localStorage cleared</span>';
+        }
+
+        function clearInvalid() {
+            let cleaned = false;
+
+            // Clean cart
+            const cart = localStorage.getItem('cart');
+            if (cart) {
+                const c = JSON.parse(cart);
+                if (c.items && c.items.length > 0) {
+                    const validItems = c.items.filter(item => 
+                        item.productId && 
+                        typeof item.productId === 'string' && 
+                        item.productId.length === 24
+                    );
+                    if (validItems.length !== c.items.length) {
+                        c.items = validItems;
+                        localStorage.setItem('cart', JSON.stringify(c));
+                        cleaned = true;
+                    }
+                }
+            }
+
+            // Clean wishlist
+            const wishlist = localStorage.getItem('wishlist');
+            if (wishlist) {
+                const w = JSON.parse(wishlist);
+                if (Array.isArray(w) && w.length > 0) {
+                    const validIds = w.filter(id => 
+                        id && 
+                        typeof id === 'string' && 
+                        id.length === 24
+                    );
+                    if (validIds.length !== w.length) {
+                        localStorage.setItem('wishlist', JSON.stringify(validIds));
+                        cleaned = true;
+                    }
+                }
+            }
+
+            displayCurrent();
+            const msg = cleaned ? 
+                '<span class="success">✓ Invalid data removed</span>' : 
+                '<span class="warning">No invalid data found</span>';
+            document.getElementById('test-result').innerHTML = msg;
+        }
+
+        function refresh() {
+            displayCurrent();
+        }
+
+        async function testProductAPI() {
+            const result = document.getElementById('test-result');
+            result.innerHTML = 'Testing...';
+
+            try {
+                // Test 1: Get products list
+                const listRes = await fetch(`${API_BASE}/products?page=1&limit=3`);
+                const listData = await listRes.json();
+
+                if (!listData.success || !listData.data || listData.data.length === 0) {
+                    result.innerHTML = '<span class="error">✗ No products found</span>';
+                    return;
+                }
+
+                let output = '<span class="success">✓ Product API works</span>\n\n';
+                output += 'Sample Products:\n';
+                
+                for (const p of listData.data.slice(0, 3)) {
+                    output += `\nID: ${p._id} (${p._id.length} chars)\n`;
+                    output += `Title: ${p.title}\n`;
+                    output += `Stock: ${p.stock}\n`;
+
+                    // Test 2: Get product by ID
+                    try {
+                        const detailRes = await fetch(`${API_BASE}/products/${p._id}`);
+                        const detailData = await detailRes.json();
+                        if (detailData.success && detailData.data) {
+                            output += `Detail API: <span class="success">✓</span>\n`;
+                        } else {
+                            output += `Detail API: <span class="error">✗</span>\n`;
+                        }
+                    } catch (e) {
+                        output += `Detail API: <span class="error">✗ ${e.message}</span>\n`;
+                    }
+                }
+
+                result.innerHTML = `<pre>${output}</pre>`;
+            } catch (error) {
+                result.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        // Display on load
+        displayCurrent();
+    </script>
+</body>
+</html>

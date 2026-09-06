@@ -1,0 +1,148 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  ecom-java — Docker Compose
+#
+#  Run the whole stack:
+#    docker compose -p ecom-java up -d
+#
+#  Container names : ecom-java-mongo | ecom-java-opensearch |
+#                    ecom-java-backend | ecom-java-frontend
+#  Network         : ecom-java-network
+#  Volumes         : ecom-java-mongo-data | ecom-java-opensearch-data
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────
+  ecom-java-mongo:
+    image: mongo:7.0
+    container_name: ecom-java-mongo
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - ecom-java-mongo-data:/data/db
+      - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+    networks:
+      - ecom-java-network
+
+  # ── MongoDB replica-set init (one-shot) ──────────────────────────────────
+  ecom-java-mongo-init:
+    image: mongo:7.0
+    container_name: ecom-java-mongo-init
+    restart: "no"
+    depends_on:
+      ecom-java-mongo:
+        condition: service_healthy
+    volumes:
+      - ./database/mongo-rs-init.sh:/mongo-rs-init.sh:ro
+      - ./database/mongo-rs-init.js:/mongo-rs-init.js:ro
+    entrypoint: ["bash", "/mongo-rs-init.sh"]
+    networks:
+      - ecom-java-network
+
+  # ── OpenSearch ───────────────────────────────────────────────────────────
+  ecom-java-opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    container_name: ecom-java-opensearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIGURATION: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - ecom-java-opensearch-data:/usr/share/opensearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+    networks:
+      - ecom-java-network
+
+  # ── Java Spring Boot Backend ──────────────────────────────────────────────
+  ecom-java-backend:
+    build:
+      context: ./backend-java
+      dockerfile: Dockerfile
+    image: ecom-java-backend:latest
+    container_name: ecom-java-backend
+    restart: unless-stopped
+    depends_on:
+      ecom-java-mongo-init:
+        condition: service_completed_successfully
+      ecom-java-opensearch:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: "mongodb://ecom-java-mongo:27017/ecommerce?replicaSet=rs0&directConnection=true"
+      MONGODB_DATABASE: ecommerce
+      OPENSEARCH_HOST: ecom-java-opensearch
+      OPENSEARCH_PORT: 9200
+      OPENSEARCH_SCHEME: http
+      JWT_SECRET: ${JWT_SECRET:-ecom-java-jwt-secret-change-in-production-2024}
+      # Redis is optional — backend degrades gracefully when unreachable
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - ecom-java-network
+
+  # ── Vue Frontend (nginx) ──────────────────────────────────────────────────
+  ecom-java-frontend:
+    build:
+      context: ./frontend-vue
+      dockerfile: Dockerfile
+    image: ecom-java-frontend:latest
+    container_name: ecom-java-frontend
+    restart: unless-stopped
+    depends_on:
+      ecom-java-backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ecom-java-network
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  ecom-java-mongo-data:
+    external: true   # pre-created with copied product data
+  ecom-java-opensearch-data:
+    driver: local
+
+# ── Network ───────────────────────────────────────────────────────────────────
+networks:
+  ecom-java-network:
+    driver: bridge
+    name: ecom-java-network

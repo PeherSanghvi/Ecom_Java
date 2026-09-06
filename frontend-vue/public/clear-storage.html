@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Storage - E-Commerce</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            color: #1a202c;
+        }
+        p {
+            color: #718096;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .section {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #e2e8f0;
+        }
+        .section h3 {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+        .section pre {
+            background: #1a202c;
+            color: #48bb78;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            margin-bottom: 10px;
+        }
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-danger {
+            background: #fc8181;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #f56565;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(252, 129, 129, 0.3);
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+        .storage-info {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .storage-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .storage-item:last-child {
+            border-bottom: none;
+        }
+        .storage-key {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .storage-value {
+            color: #718096;
+            font-size: 14px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .badge-valid {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .badge-invalid {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear Browser Storage</h1>
+        <p>Remove stale cart and wishlist data that may contain invalid product IDs from previous tests.</p>
+
+        <div class="section">
+            <h3>Current Storage</h3>
+            <div id="storageInfo"></div>
+        </div>
+
+        <button class="btn btn-primary" onclick="clearInvalidOnly()">Clear Invalid Data Only</button>
+        <button class="btn btn-danger" onclick="clearAll()">Clear All Storage (Keeps Login)</button>
+
+        <div id="status"></div>
+
+        <div class="section" style="margin-top: 30px;">
+            <h3>Manual Console Command</h3>
+            <p style="margin-bottom: 10px; font-size: 14px;">Or press F12 and paste this in Console:</p>
+            <pre>localStorage.removeItem('cart');
+localStorage.removeItem('wishlist');
+location.reload();</pre>
+        </div>
+    </div>
+
+    <script>
+        function displayStorageInfo() {
+            const cart = localStorage.getItem('cart');
+            const wishlist = localStorage.getItem('wishlist');
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+
+            let html = '';
+
+            // Cart
+            if (cart) {
+                try {
+                    const cartData = JSON.parse(cart);
+                    const items = cartData.items || [];
+                    let invalidCount = 0;
+                    items.forEach(item => {
+                        if (!item.productId || item.productId.length !== 24) {
+                            invalidCount++;
+                        }
+                    });
+                    html += `<div class="storage-item">
+                        <span class="storage-key">Cart</span>
+                        <span class="storage-value">
+                            ${items.length} items
+                            ${invalidCount > 0 ? `<span class="badge badge-invalid">${invalidCount} invalid</span>` : '<span class="badge badge-valid">✓ valid</span>'}
+                        </span>
+                    </div>`;
+                } catch {
+                    html += `<div class="storage-item">
+                        <span class="storage-key">Cart</span>
+                        <span class="storage-value"><span class="badge badge-invalid">corrupted</span></span>
+                    </div>`;
+                }
+            }
+
+            // Wishlist
+            if (wishlist) {
+                try {
+                    const wishlistData = JSON.parse(wishlist);
+                    let invalidCount = 0;
+                    wishlistData.forEach(id => {
+                        if (!id || id.length !== 24) {
+                            invalidCount++;
+                        }
+                    });
+                    html += `<div class="storage-item">
+                        <span class="storage-key">Wishlist</span>
+                        <span class="storage-value">
+                            ${wishlistData.length} items
+                            ${invalidCount > 0 ? `<span class="badge badge-invalid">${invalidCount} invalid</span>` : '<span class="badge badge-valid">✓ valid</span>'}
+                        </span>
+                    </div>`;
+                } catch {
+                    html += `<div class="storage-item">
+                        <span class="storage-key">Wishlist</span>
+                        <span class="storage-value"><span class="badge badge-invalid">corrupted</span></span>
+                    </div>`;
+                }
+            }
+
+            // User
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    html += `<div class="storage-item">
+                        <span class="storage-key">User</span>
+                        <span class="storage-value">${userData.email || 'Unknown'}</span>
+                    </div>`;
+                } catch {
+                    html += `<div class="storage-item">
+                        <span class="storage-key">User</span>
+                        <span class="storage-value"><span class="badge badge-invalid">corrupted</span></span>
+                    </div>`;
+                }
+            }
+
+            // Token
+            if (token) {
+                html += `<div class="storage-item">
+                    <span class="storage-key">Token</span>
+                    <span class="storage-value"><span class="badge badge-valid">✓ present</span></span>
+                </div>`;
+            }
+
+            if (!html) {
+                html = '<div class="storage-item"><span class="storage-value">No data stored</span></div>';
+            }
+
+            document.getElementById('storageInfo').innerHTML = `<div class="storage-info">${html}</div>`;
+        }
+
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+
+        function clearInvalidOnly() {
+            let cleared = 0;
+
+            // Clean cart
+            const cart = localStorage.getItem('cart');
+            if (cart) {
+                try {
+                    const cartData = JSON.parse(cart);
+                    if (cartData.items && cartData.items.length > 0) {
+                        const validItems = cartData.items.filter(item =>
+                            item.productId && typeof item.productId === 'string' && item.productId.length === 24
+                        );
+                        if (validItems.length !== cartData.items.length) {
+                            cartData.items = validItems;
+                            localStorage.setItem('cart', JSON.stringify(cartData));
+                            cleared++;
+                        }
+                    }
+                } catch {
+                    localStorage.removeItem('cart');
+                    cleared++;
+                }
+            }
+
+            // Clean wishlist
+            const wishlist = localStorage.getItem('wishlist');
+            if (wishlist) {
+                try {
+                    const wishlistData = JSON.parse(wishlist);
+                    if (Array.isArray(wishlistData) && wishlistData.length > 0) {
+                        const validIds = wishlistData.filter(id =>
+                            id && typeof id === 'string' && id.length === 24
+                        );
+                        if (validIds.length !== wishlistData.length) {
+                            localStorage.setItem('wishlist', JSON.stringify(validIds));
+                            cleared++;
+                        }
+                    }
+                } catch {
+                    localStorage.removeItem('wishlist');
+                    cleared++;
+                }
+            }
+
+            displayStorageInfo();
+            if (cleared > 0) {
+                showStatus('✓ Invalid data removed. Reloading page...', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showStatus('✓ No invalid data found', 'info');
+            }
+        }
+
+        function clearAll() {
+            if (!confirm('This will clear cart and wishlist data but keep you logged in. Continue?')) {
+                return;
+            }
+
+            localStorage.removeItem('cart');
+            localStorage.removeItem('wishlist');
+
+            displayStorageInfo();
+            showStatus('✓ Cart and Wishlist cleared. Reloading page...', 'success');
+            setTimeout(() => location.reload(), 1500);
+        }
+
+        // Display on load
+        displayStorageInfo();
+    </script>
+</body>
+</html>
